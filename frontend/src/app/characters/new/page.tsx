@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import type { EmotionKey } from "@/types";
 import ThemeToggle from "@/components/ThemeToggle";
-import { createCharacter, type CharacterCreate } from "@/lib/api";
+import { createCharacter, uploadImage, type CharacterCreate } from "@/lib/api";
 
 const emotionSlots: EmotionKey[] = [
   "happy",
@@ -28,9 +28,32 @@ export default function NewCharacter() {
   const [hashtags, setHashtags] = useState<string>("");
   const [boundaries, setBoundaries] = useState<string>("");
   const [imageDefault, setImageDefault] = useState("");
+  const [imageDefaultPreview, setImageDefaultPreview] = useState<string | null>(null);
   const [images, setImages] = useState<Record<string, string>>({});
+  const [imagePreviews, setImagePreviews] = useState<Record<string, string>>({});
+  const [uploadingImages, setUploadingImages] = useState<Record<string, boolean>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const handleImageUpload = async (file: File, emotion?: string) => {
+    const key = emotion || "default";
+    setUploadingImages((prev) => ({ ...prev, [key]: true }));
+    try {
+      const result = await uploadImage(file);
+      if (emotion) {
+        setImages((prev) => ({ ...prev, [emotion]: result.url }));
+        setImagePreviews((prev) => ({ ...prev, [emotion]: result.url }));
+      } else {
+        setImageDefault(result.url);
+        setImageDefaultPreview(result.url);
+      }
+    } catch (err) {
+      console.error("이미지 업로드 실패:", err);
+      setError(err instanceof Error ? err.message : "이미지 업로드에 실패했습니다.");
+    } finally {
+      setUploadingImages((prev) => ({ ...prev, [key]: false }));
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -197,63 +220,118 @@ export default function NewCharacter() {
 
           <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800">
             <h2 className="mb-4 text-base font-semibold text-slate-900 dark:text-slate-100">이미지 설정</h2>
-            <label className="mb-4 flex flex-col gap-1 text-sm">
-              <span className="text-slate-600 dark:text-slate-400">기본 이미지 경로</span>
+            
+            {/* 기본 이미지 */}
+            <div className="mb-4 flex flex-col gap-2">
+              <label className="text-sm text-slate-600 dark:text-slate-400">기본 이미지</label>
+              <div className="flex items-center gap-3">
+                <div className="flex-1">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        handleImageUpload(file);
+                      }
+                    }}
+                    className="hidden"
+                    id="default-image-upload"
+                    disabled={uploadingImages.default}
+                  />
+                  <label
+                    htmlFor="default-image-upload"
+                    className={`flex cursor-pointer items-center justify-center rounded-lg border-2 border-dashed px-4 py-3 text-sm transition-colors ${
+                      uploadingImages.default
+                        ? "border-slate-300 bg-slate-100 dark:border-slate-600 dark:bg-slate-700"
+                        : "border-slate-300 hover:border-slate-400 dark:border-slate-600 dark:hover:border-slate-500"
+                    }`}
+                  >
+                    {uploadingImages.default ? "업로드 중..." : "📷 이미지 업로드"}
+                  </label>
+                </div>
+                {imageDefaultPreview && (
+                  <div className="h-20 w-20 overflow-hidden rounded-lg border border-slate-200 dark:border-slate-700">
+                    <img
+                      src={imageDefaultPreview}
+                      alt="기본 이미지 미리보기"
+                      className="h-full w-full object-cover"
+                    />
+                  </div>
+                )}
+              </div>
               <input
                 value={imageDefault}
-                onChange={(e) => setImageDefault(e.target.value)}
-                className="rounded-lg border px-3 py-2 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200"
-                placeholder="/images/character-default.png"
+                onChange={(e) => {
+                  setImageDefault(e.target.value);
+                  setImageDefaultPreview(e.target.value || null);
+                }}
+                className="rounded-lg border px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200"
+                placeholder="/images/character-default.png 또는 업로드"
               />
-            </label>
+            </div>
+
+            {/* 감정별 이미지 */}
             <p className="mb-3 text-sm text-slate-600 dark:text-slate-400">
-              감정/상황 태그에 맞는 이미지 경로를 입력하세요. (추후 업로드 API 연동)
+              감정/상황별 이미지를 업로드하거나 경로를 직접 입력하세요.
             </p>
-
-        <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800">
-          <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">상황별 이미지</h2>
-          <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
-            감정/상황 태그에 맞는 이미지 경로를 입력하세요. (추후 업로드 API 연동)
-          </p>
-          <div className="mt-3 grid gap-3 md:grid-cols-2">
-            {emotionSlots.map((slot) => (
-              <label key={slot} className="flex flex-col gap-1 text-sm">
-                <span className="text-slate-600">{slot}</span>
-                <input
-                  value={images[slot] ?? ""}
-                  onChange={(e) =>
-                    setImages((prev) => ({
-                      ...prev,
-                      [slot]: e.target.value,
-                    }))
-                  }
-                  placeholder="/images/character-happy.png"
-                  className="rounded-lg border px-3 py-2 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:placeholder:text-slate-400"
-                />
-              </label>
-            ))}
-          </div>
-        </section>
-
-          <div className="grid gap-3 md:grid-cols-2">
-            {emotionSlots.map((slot) => (
-              <label key={slot} className="flex flex-col gap-1 text-sm">
-                <span className="text-slate-600 dark:text-slate-400 capitalize">{slot}</span>
-                <input
-                  value={images[slot] ?? ""}
-                  onChange={(e) =>
-                    setImages((prev) => ({
-                      ...prev,
-                      [slot]: e.target.value,
-                    }))
-                  }
-                  placeholder={`/images/character-${slot}.png`}
-                  className="rounded-lg border px-3 py-2 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:placeholder:text-slate-400"
-                />
-              </label>
-            ))}
-          </div>
-        </section>
+            <div className="grid gap-3 md:grid-cols-2">
+              {emotionSlots.map((slot) => (
+                <div key={slot} className="flex flex-col gap-2">
+                  <label className="text-sm text-slate-600 dark:text-slate-400 capitalize">
+                    {slot}
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          handleImageUpload(file, slot);
+                        }
+                      }}
+                      className="hidden"
+                      id={`image-upload-${slot}`}
+                      disabled={uploadingImages[slot]}
+                    />
+                    <label
+                      htmlFor={`image-upload-${slot}`}
+                      className={`flex cursor-pointer items-center justify-center rounded-lg border border-slate-300 px-3 py-1.5 text-xs transition-colors hover:bg-slate-100 dark:border-slate-600 dark:hover:bg-slate-700 ${
+                        uploadingImages[slot] ? "opacity-50" : ""
+                      }`}
+                    >
+                      {uploadingImages[slot] ? "업로드 중..." : "📷"}
+                    </label>
+                    <input
+                      value={images[slot] ?? ""}
+                      onChange={(e) => {
+                        setImages((prev) => ({
+                          ...prev,
+                          [slot]: e.target.value,
+                        }));
+                        setImagePreviews((prev) => ({
+                          ...prev,
+                          [slot]: e.target.value || "",
+                        }));
+                      }}
+                      placeholder={`/images/character-${slot}.png`}
+                      className="flex-1 rounded-lg border px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:placeholder:text-slate-400"
+                    />
+                    {imagePreviews[slot] && (
+                      <div className="h-12 w-12 overflow-hidden rounded-lg border border-slate-200 dark:border-slate-700">
+                        <img
+                          src={imagePreviews[slot]}
+                          alt={`${slot} 미리보기`}
+                          className="h-full w-full object-cover"
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
 
           <section className="flex items-center justify-end gap-2">
             <Link

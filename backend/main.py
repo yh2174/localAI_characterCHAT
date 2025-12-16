@@ -1,6 +1,10 @@
 import re
-from fastapi import Depends, FastAPI, HTTPException
+import os
+import shutil
+from pathlib import Path
+from fastapi import Depends, FastAPI, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from sqlmodel import select
 
 from .db import init_db, get_session
@@ -22,10 +26,16 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# 이미지 저장 디렉토리 설정
+IMAGE_DIR = Path("frontend/public/images/characters")
+IMAGE_DIR.mkdir(parents=True, exist_ok=True)
+
 
 @app.on_event("startup")
 def on_startup():
     init_db()
+    # 이미지 디렉토리 생성
+    IMAGE_DIR.mkdir(parents=True, exist_ok=True)
 
 
 @app.get("/health")
@@ -82,6 +92,34 @@ async def get_character(character_id: int, session: Session = Depends(get_sessio
     if not character:
         raise HTTPException(status_code=404, detail="Character not found")
     return character
+
+
+@app.post("/upload/image")
+async def upload_image(file: UploadFile = File(...)):
+    """이미지 파일 업로드"""
+    # 파일 확장자 확인
+    allowed_extensions = {".jpg", ".jpeg", ".png", ".gif", ".webp"}
+    file_ext = Path(file.filename).suffix.lower()
+    
+    if file_ext not in allowed_extensions:
+        raise HTTPException(status_code=400, detail="지원하지 않는 이미지 형식입니다. (jpg, jpeg, png, gif, webp만 가능)")
+    
+    # 파일명 생성 (타임스탬프 + 원본 파일명)
+    import time
+    timestamp = int(time.time() * 1000)
+    safe_filename = f"{timestamp}_{file.filename}"
+    file_path = IMAGE_DIR / safe_filename
+    
+    # 파일 저장
+    try:
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+        
+        # 프론트엔드에서 접근 가능한 경로 반환
+        image_url = f"/images/characters/{safe_filename}"
+        return {"url": image_url, "filename": safe_filename}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"이미지 저장 실패: {str(e)}")
 
 
 def parse_tags(text: str):

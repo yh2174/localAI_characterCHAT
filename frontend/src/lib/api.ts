@@ -138,6 +138,23 @@ export async function createCharacter(data: CharacterCreate): Promise<Character>
   }
 }
 
+export async function uploadImage(file: File): Promise<{ url: string; filename: string }> {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const res = await fetch(`${API_BASE}/upload/image`, {
+    method: "POST",
+    body: formData,
+  });
+
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({ detail: "이미지 업로드 실패" }));
+    throw new Error(error.detail || "이미지 업로드 실패");
+  }
+
+  return res.json();
+}
+
 export async function testApiConnection(): Promise<boolean> {
   try {
     const res = await fetch(`${API_BASE}/health`);
