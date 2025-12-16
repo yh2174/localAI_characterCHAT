@@ -1,0 +1,7 @@
+fastapi>=0.124.4
+uvicorn[standard]>=0.38.0
+sqlmodel>=0.0.27
+python-multipart>=0.0.20
+pydantic-settings>=2.12.0
+httpx>=0.28.1
+
