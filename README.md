@@ -91,7 +91,38 @@ ollama serve &
 
 ### 6. 애플리케이션 실행
 
-#### Backend 실행
+#### 방법 1: 실행 스크립트 사용 (추천)
+
+**macOS/Linux:**
+```bash
+./start.sh
+```
+
+**Windows:**
+```cmd
+start.bat
+또는
+start.cmd
+```
+
+실행 스크립트는 다음을 자동으로 처리합니다:
+- 가상환경 생성 및 활성화
+- Python 의존성 설치
+- Frontend 의존성 설치
+- Ollama 서버 확인
+- Backend 및 Frontend 서버 시작
+
+**서버 종료 (macOS/Linux):**
+```bash
+./stop.sh
+```
+
+**서버 종료 (Windows):**
+각 터미널 창을 닫으면 자동으로 종료됩니다.
+
+#### 방법 2: 수동 실행
+
+**Backend 실행:**
 
 ```bash
 # 프로젝트 루트에서
@@ -101,7 +132,7 @@ uvicorn backend.main:app --reload --port 8000
 
 Backend는 `http://127.0.0.1:8000`에서 실행됩니다.
 
-#### Frontend 실행
+**Frontend 실행:**
 
 ```bash
 # frontend 디렉토리에서

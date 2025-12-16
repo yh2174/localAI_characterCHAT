@@ -42,6 +42,7 @@ frontend/dist/
 # Logs
 *.log
 logs/
+backend.log
 
 # Temporary files
 *.tmp
